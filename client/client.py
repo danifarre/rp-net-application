@@ -14,7 +14,7 @@ class Client:
 
 def read_configuration(file_name):
     configuration = []
-    
+
     with open(file_name) as f:
         for line in f:
             configuration.append(line[line.index("=") + 1: -1])
