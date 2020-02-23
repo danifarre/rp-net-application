@@ -1,10 +1,8 @@
 #! /usr/bin/python
 
 # Clase que representa els estats possibles d'un client
-
-actual_state = ""
-
 class States:
+    actual_state = ""
 
     def __init__(self, state = "NOT_REGISTERED"):
         self.actual_state = state
