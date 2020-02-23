@@ -28,5 +28,24 @@ class States:
     def to_SEND_ALIVE(self):
         self.actual_state = "SEND_ALIVE"
 
+
+    def is_NOT_REGISTERED(self):
+        self.actual_state == "NOT_REGISTERED"
+
+    def is_WAIT_ACK_REG(self):
+        self.actual_state == "WAIT_ACK_REG"
+
+    def is_WAIT_INFO(self):
+        self.actual_state == "WAIT_INFO"
+
+    def is_WAIT_ACK_INFO(self): 
+        self.actual_state == "WAIT_ACK_INFO"
+
+    def is_REGISTERED(self):
+        self.actual_state == "REGISTERED"
+
+    def is_SEND_ALIVE(self):
+        self.actual_state == "SEND_ALIVE"
+
     def show(self):
         print self.actual_state

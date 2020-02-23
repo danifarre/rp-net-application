@@ -1,6 +1,7 @@
 #! /usr/bin/python
 
-import sys
+import sys, optparse
+import socket
 import states
 
 class Client:
@@ -10,30 +11,30 @@ class Client:
         self.debug = debug
 
     def run(self):
-        pass
+        self.registry()
+
+    def registry(self):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.sendto('' + configuration['id'] + ' 00000000 ' + '', (self.configuration['server'], int(self.configuration['server-udp'])))
 
 def read_configuration(file_name):
-    configuration = []
+    configuration = {}
 
     with open(file_name) as f:
         for line in f:
-            configuration.append(line[line.index("=") + 1: -1])
+            configuration[line[: line.index('=')]] = line[line.index('=') + 1: -1]
 
     return configuration
 
 
 if __name__ == "__main__":
-    configuration = []
-    debug = False
+    parser = optparse.OptionParser()
+    parser.add_option('-c', '--configuration', action='store', type='string', default='client.cfg', help='File of configurations')
+    parser.add_option('-d', '--debug', action='store_true', default='false', help='Debuging?')
+    (options, args) = parser.parse_args()
 
-    if "-c" in sys.argv:
-        configuration = read_configuration(sys.argv[sys.argv.index("-c") + 1])
-    else:
-        configuration = read_configuration("client.cfg")
+    configuration = read_configuration(options.configuration)
 
-    if "-d" in sys.argv:
-        debug = True
-
-    client = Client(configuration, debug)
+    client = Client(configuration, options.debug)
 
     client.run()
