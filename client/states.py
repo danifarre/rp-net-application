@@ -48,4 +48,4 @@ class States:
         self.actual_state == "SEND_ALIVE"
 
     def show(self):
-        print self.actual_state
+        print(self.actual_state)

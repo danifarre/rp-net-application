@@ -1,5 +1,6 @@
-#! /usr/bin/python
+#!/usr/bin/env python
 
+from struct import *
 import sys, optparse
 import socket
 import states
@@ -15,7 +16,8 @@ class Client:
 
     def registry(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.sendto('(0x00) (' + configuration['id'] + ') ("00000000")' + ' ("")', (self.configuration['server'], int(self.configuration['server-udp'])))
+        data = pack('!B13s9s61s', 0x0, configuration['id'].encode(), '00000000'.encode(), "".encode())
+        sock.sendto(data, (self.configuration['server'], int(self.configuration['server-udp'])))
 
 def read_configuration(file_name):
     configuration = {}
