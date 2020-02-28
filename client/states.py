@@ -1,19 +1,16 @@
-#! /usr/bin/python
 
-class States:
+# Estados
+NOT_REGISTERED = 'NOT_REGISTERED'
+WAIT_ACK_REG = 'WAIT_ACK_REG'
+WAIT_INFO = 'WAIT_INFO'
+WAIT_ACK_INFO = 'WAIT_ACK_INFO'
+REGISTERED = 'REGISTERED'
+SEND_ALIVE = 'SEND_ALIVE'
+
+class States(object):
     """Esta clase representa los estados en los que se puede encontrar un cliente
 
     """
-
-    # Estados
-    NOT_REGISTERED = 'NOT_REGISTERED'
-    WAIT_ACK_REG = 'WAIT_ACK_REG'
-    WAIT_INFO = 'WAIT_INFO'
-    WAIT_ACK_INFO = 'WAIT_ACK_INFO'
-    REGISTERED = 'REGISTERED'
-    SEND_ALIVE = 'SEND_ALIVE'
-
-    actual_state = ''
 
     def __init__(self, state = NOT_REGISTERED):
         self.actual_state = state
