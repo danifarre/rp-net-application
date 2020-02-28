@@ -15,16 +15,17 @@ class Client:
         self.registry()
 
     def registry(self):
+        print(configuration)
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        data = pack('!B13s9s61s', 0x0, configuration['id'].encode(), '00000000'.encode(), "".encode())
-        sock.sendto(data, (self.configuration['server'], int(self.configuration['server-udp'])))
+        data = pack('!B13s9s61s', 0x0, configuration['Id'].encode(), '00000000'.encode(), "".encode())
+        sock.sendto(data, (self.configuration['Server'], int(self.configuration['Server-UDP'])))
 
 def read_configuration(file_name):
     configuration = {}
 
     with open(file_name) as f:
         for line in f:
-            configuration[line[: line.index('=')]] = line[line.index('=') + 1: -1]
+            configuration[line[: line.index('=') - 1]] = line[line.index('=') + 2: -1]
 
     return configuration
 
