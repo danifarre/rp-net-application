@@ -6,13 +6,14 @@ WAIT_INFO = 'WAIT_INFO'
 WAIT_ACK_INFO = 'WAIT_ACK_INFO'
 REGISTERED = 'REGISTERED'
 SEND_ALIVE = 'SEND_ALIVE'
+DISCONECTED = 'DISCONECTED'
 
 class States(object):
     """Esta clase representa los estados en los que se puede encontrar un cliente
 
     """
 
-    def __init__(self, state = NOT_REGISTERED):
+    def __init__(self, state = DISCONECTED):
         self.actual_state = state
 
     def get_actual_state(self):

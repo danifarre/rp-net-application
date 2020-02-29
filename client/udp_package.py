@@ -41,17 +41,20 @@ class UDPPackage(object):
         """Empaqueta las entradas, en función del tipo de paquete. 
            Y lo almacena, para poder obtener su información.
         """
+        result = ''
 
-        data = ''
         if package == REG_REQ:
-            data = pack(UDP_FORMAT, type_package[REG_REQ], id.encode(), '00000000'.encode(), ''.encode())
+            result = pack(UDP_FORMAT, type_package[REG_REQ], id.encode(), '00000000'.encode(), ''.encode())
             self.pack_info = (calcsize(UDP_FORMAT), REG_REQ, id, '00000000', '')
-        return data
+        elif package == REG_INFO:
+            result = pack(UDP_FORMAT, type_package[REG_INFO], id.encode(), random.encode(), data.encode())
+            self.pack_info = (calcsize(UDP_FORMAT), REG_INFO, id, random, data)
+        
+        return result
 
     def unpack(self, package):
         """Desempaqueta la entrada, la devuelbe como una tupla
            Y lo almacena, para poder obtener su información.
-           Formato: (nombre, identificador, random, datos)
         """
         result = {}
         data = unpack(UDP_FORMAT, package)
@@ -81,7 +84,7 @@ class UDPPackage(object):
 
         self.pack_info = (calcsize(UDP_FORMAT), result['type'], result['id'], result['random'], result['data'])
         
-        return tuple(result)
+        return result
 
 
     def get_last_package(self):
