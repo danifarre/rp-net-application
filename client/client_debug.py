@@ -59,8 +59,8 @@ class Debug(object):
         size, pack, id, rndm, data = package
         print(self.debug_start() + 'Enviat: ' + 
                                     'bytes=' + str(size) + ', ' + 
-                                    'comanda=' + pack + ', ' +
-                                    'Id=' + id + ', ' + 
+                                    'paquet=' + pack + ', ' +
+                                    'id=' + id + ', ' + 
                                     'rndm=' + rndm + ', ' + 
                                     'dades=' + data
                                     )
@@ -69,8 +69,8 @@ class Debug(object):
         size, pack, id, rndm, data = package
         print(self.debug_start() + 'Rebut: ' + 
                                     'bytes=' + str(size) + ', ' + 
-                                    'comanda=' + pack + ', ' +
-                                    'Id=' + id + ', ' + 
+                                    'paquet=' + pack + ', ' +
+                                    'id=' + id + ', ' + 
                                     'rndm=' + rndm + ', ' + 
                                     'dades=' + data
                                     )
