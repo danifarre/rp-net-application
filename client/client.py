@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, optparse
+import sys, optparse, time
 import socket
 import states, udp_package, client_debug
 
@@ -12,6 +12,8 @@ INFO_ACK = 'INFO_ACK'
 REG_NACK = 'REG_NACK'
 INFO_NACK = 'INFO_NACK'
 REG_REJ = 'REG_REJ'
+
+MAX_REGISTRATION_ATTEMPTS = 3
 
 # Etiquetas para calcular tiempos de envio/recepción de paquete de registro
 T,  U,  N,  O,  P,  Q  = 1, 2, 7, 3, 3, 3
@@ -28,15 +30,18 @@ class Client(object):
         """Arranca el cliente
         """
         self.debug.start_loop_service(configuration['Id'])
-        self.state.to_not_registered()
         self.registry()
 
     def registry(self):
         """Registra el cliente con el servidor
         """
+        registration_attempts = 0
 
-        self.debug.new_registration_process(self.state.get_actual_state())
-        while True:
+        while registration_attempts < MAX_REGISTRATION_ATTEMPTS:
+            self.state.to_not_registered()
+            self.debug.new_registration_process(self.state.get_actual_state(), registration_attempts + 1)
+
+
             # Diccionario que usaremos para almacenar el identificador, número aleatorio y la ip del servidor
             server_info = {}
 
@@ -53,23 +58,35 @@ class Client(object):
             self.debug.state_change(self.state.get_actual_state())
 
             # Esperamos la respuesta del servidor
-            answer = self.__wait_reg_req_response(sock, T, U, N, O, P, Q)
+            answer = self.__wait_reg_req_response(sock, pack, T, U, N - 1, O, P - 1, Q)
 
             # Si no obtenemos respuesta, el cliente termina
             if answer == None:
+                registration_attempts += 1
+                time.sleep(U)
                 continue
 
             # Desempaquetamos la entrada, y analizamos el paquete
-            unpack = self.udp_package.unpack(answer)
+            unpacked = self.udp_package.unpack(answer)
             self.debug.received_udp_package(self.udp_package.get_last_package())
 
-            if unpack['type'] == REG_NACK:
-                unpack = self.__case_reg_ack(sock, unpack)
-                
-            if unpack['type'] == REG_ACK:
-                server_info['id'] = unpack['id']
-                server_info['random'] = unpack['random']
-                server_info['server-udp'] = unpack['data']
+            # Si el paquete es incorrecto se inicia un nuevo proceso de registrop
+            if not self.__valid_package(unpacked):
+                registration_attempts += 1
+                continue
+
+            if unpacked['type'] == REG_NACK:
+                self.debug.discarded_package_with_reason(unpacked['data'])
+                unpacked = self.__resend_reg_req(sock)
+
+                if unpacked == None:
+                    registration_attempts += 1 
+                    continue
+
+            if unpacked['type'] == REG_ACK:
+                server_info['id'] = unpacked['id']
+                server_info['random'] = unpacked['random']
+                server_info['server-udp'] = unpacked['data']
 
                 pack = self.udp_package.pack(REG_INFO,
                                              configuration['Id'],
@@ -83,13 +100,24 @@ class Client(object):
                 self.state.to_wait_ack_info()
                 self.debug.state_change(self.state.get_actual_state())
 
-            elif unpack['type'] == REG_REJ:
+            elif unpacked['type'] == REG_REJ:
+                registration_attempts += 1 
+                self.debug.package_rejected_with_reason(unpacked['data'])
                 self.state.to_not_registered()
+                self.debug.state_change(self.state.get_actual_state())
                 continue
 
             answer = sock.recv(84)
-            unpack = self.udp_package.unpack(answer)
+            unpacked = self.udp_package.unpack(answer)
             self.debug.received_udp_package(self.udp_package.get_last_package())
+
+            if unpacked['type'] == INFO_NACK:
+                self.debug.discarded_package_with_additional_info(unpacked['data'])
+                unpacked = self.__resend_reg_req(sock)
+
+                if unpacked == None:
+                    registration_attempts += 1 
+                    continue
 
             self.debug.accepted_device()
 
@@ -98,65 +126,100 @@ class Client(object):
 
             break
 
+        else:
+            self.debug.could_not_register(MAX_REGISTRATION_ATTEMPTS)
+            sys.exit(1)
 
 
-
-    def __wait_reg_req_response(self, sock, t, u, n, o, p, q):
+    def __wait_reg_req_response(self, sock, pack, t, u, n, o, p, q):
         answer = None
-        while o > 0:
-            while p > 0:
-                sock.settimeout(t)
-                n -= 1
-                try:
-                    answer = sock.recv(84)
-                    if answer != None:
-                        return answer
-                except socket.timeout:
-                    p -= 1
-                    t += 1
+        sock.settimeout(t)
 
-            while t < T * q:
-                sock.settimeout(t)
-                n -= 1
-                try:
-                    answer = sock.recv(84)
-                    if answer != None:
-                        return answer
-                except socket.timeout:
-                    t += 1
+        while p > 0:
+            n -= 1
+            try:
+                answer = sock.recv(84)
+                if answer != None:
+                    return answer
+            except socket.timeout:
+                p -= 1
+            sock.sendto(pack, (self.configuration['Server'], int(self.configuration['Server-UDP'])))
+            self.debug.send_udp_package(self.udp_package.get_last_package())
 
-            while n > 0:
-                sock.settimeout(t)
-                n -= 1
-                try:
-                    answer = sock.recv(84)
-                    if answer != None:
-                        return answer
-                except socket.timeout:
-                    pass
-            o -= 1
+        t += 1
+        while t < T * q:
+            sock.settimeout(t)
+            n -= 1
+            try:
+                answer = sock.recv(84)
+                if answer != None:
+                    return answer
+            except socket.timeout:
+                t += 1
+            sock.sendto(pack, (self.configuration['Server'], int(self.configuration['Server-UDP'])))
+            self.debug.send_udp_package(self.udp_package.get_last_package())
+
+        while n > 0:
+            sock.settimeout(t)
+            n -= 1
+            try:
+                answer = sock.recv(84)
+                if answer != None:
+                    return answer
+            except socket.timeout:
+                pass
+            sock.sendto(pack, (self.configuration['Server'], int(self.configuration['Server-UDP'])))
+            self.debug.send_udp_package(self.udp_package.get_last_package())
+
+        try:
+            answer = sock.recv(84)
+            if answer != None:
+                return answer
+        except socket.timeout:
+            pass
+
         return answer
 
-    def __case_reg_ack(self, sock, unpack):
+    def __resend_reg_req(self, sock):
         while True:
             answer = None
-            if unpack['type'] == REG_ACK:
-                break
-            elif unpack['type'] == REG_NACK:
-                self.state.to_not_registered()
-               
-                try:
-                    answer = sock.recv(84)
-                    if answer != None:
-                        unpack = answer
-                        continue
-                except socket.timeout:
-                    sys.exit(1)
 
-                self.state.to_wait_ack_reg()
-            elif unpack['type'] == REG_REJ:
+            self.state.to_not_registered()
+            self.debug.state_change(self.state.get_actual_state())
+
+            pack = self.udp_package.pack(REG_REQ, configuration['Id'])
+            sock.sendto(pack, (self.configuration['Server'], int(self.configuration['Server-UDP'])))
+            self.debug.send_udp_package(self.udp_package.get_last_package())
+
+            self.state.to_wait_ack_reg()
+            self.debug.state_change(self.state.get_actual_state())
+
+            try:
+                answer = sock.recv(84)
+                unpacked = self.udp_package.unpack(answer)
+                self.debug.received_udp_package(self.udp_package.get_last_package())
+            except socket.timeout:
+                return None
+
+            if not self.__valid_package(unpacked):
+                return None
+
+            if unpacked['type'] == REG_ACK:
                 break
-        return unpack
+            elif unpacked['type'] == REG_NACK:
+                self.debug.discarded_package_with_reason(unpacked['data'])
+                continue
+            elif unpacked['type'] == REG_REJ:
+                break
+            elif unpacked['type'] == INFO_NACK:
+                self.debug.discarded_package_with_additional_info(unpacked['data'])
+                continue
+        return unpacked
+
+    def __valid_package(self, unpacked):
+        return True
+        if unpacked['type'] == REG_ACK and self.state.is_wait_ack_reg():
+            return True
 
 def read_configuration(file_name):
     """Almacena la configuración del cliente, leyendo el fichero por defecto, o introducido por parametro

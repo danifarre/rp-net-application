@@ -3,7 +3,7 @@ import time
 class Debug(object):
 	
     def __init__(self):
-        self.suscription_process = 0
+        pass
 
     # Mensajes de ERROR
     #################################################################################
@@ -32,8 +32,17 @@ class Debug(object):
     # Mensajes de INFO
     #################################################################################
 
-    def debug_start(self):
+    def info_start(self):
         return time.strftime("%H:%M:%S") + ': ' + 'INFO  =>  '
+
+    def discarded_package_with_reason(self, reason):
+        print(self.info_start() + 'Descartat paquet de subscripció enviat, motiu: ' + reason)
+
+    def package_rejected_with_reason(self, reason):
+        print(self.info_start() + 'Rebutjat paquet de subscripció enviat, motiu: ' + reason)
+
+    def discarded_package_with_additional_info(self, reason):
+        print(self.info_start() + 'Descartat paquet de informació adicional de subscripció, motiu: ' + reason)
 
     #################################################################################
 
@@ -44,43 +53,46 @@ class Debug(object):
         return time.strftime("%H:%M:%S") + ': ' + 'DEBUG =>  '
 
     def start_loop_service(self, id):
-        print(self.debug_start() + 'Inicio bucle de servicio del equipo: ' + id)
+        print(self.debug_start() + 'Inici bucle de servei del equip: ' + id)
 
     def send_udp_package(self, package):
         size, pack, id, rndm, data = package
-        print(self.debug_start() + 'Enviado: ' + 
+        print(self.debug_start() + 'Enviat: ' + 
                                     'bytes=' + str(size) + ', ' + 
-                                    'paquete=' + pack + ', ' +
-                                    'id=' + id + ', ' + 
+                                    'comanda=' + pack + ', ' +
+                                    'Id=' + id + ', ' + 
                                     'rndm=' + rndm + ', ' + 
-                                    'datos=' + data
+                                    'dades=' + data
                                     )
 
     def received_udp_package(self, package):
         size, pack, id, rndm, data = package
-        print(self.debug_start() + 'Recibido: ' + 
+        print(self.debug_start() + 'Rebut: ' + 
                                     'bytes=' + str(size) + ', ' + 
-                                    'paquete=' + pack + ', ' +
-                                    'id=' + id + ', ' + 
+                                    'comanda=' + pack + ', ' +
+                                    'Id=' + id + ', ' + 
                                     'rndm=' + rndm + ', ' + 
-                                    'datos=' + data
+                                    'dades=' + data
                                     )
 
     def accepted_device(self):
-        print(self.debug_start() + 'Aceptada la suscripción del dispositivo en el servidor')
+        print(self.debug_start() + 'Acceptada la subscripció del dispositiu en el servidor')
 
     #################################################################################
 
     # Mensajes de MESSAGE
     #################################################################################
+    
     def msg_start(self):
         return time.strftime("%H:%M:%S") + ': ' + 'MSG.  =>  '
 
-    def new_registration_process(self, state):
-        self.suscription_process += 1
-        print(self.msg_start() + 'Dispositivo pasa a estado: ' + state + ', proceso de suscripción: ' + str(self.suscription_process))
+    def new_registration_process(self, state, attempt):
+        print(self.msg_start() + "Dispositiu passa a l'estat: " + state + ', proceso de suscripción: ' + str(attempt))
     
     def state_change(self, state):
-        print(self.msg_start() + 'Dispositivo pasa a estado: ' + state)
+        print(self.msg_start() +  "Dispositiu passa a l'estat: " + state)
+
+    def could_not_register(self, attempts):
+        print(self.msg_start() + 'Superat el número de processos de suscripció (' + str(attempts) +')')
 
     #################################################################################

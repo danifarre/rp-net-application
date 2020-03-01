@@ -39,22 +39,19 @@ class States(object):
 
 
     def is_not_registered(self):
-        self.actual_state == NOT_REGISTERED
+        return self.actual_state == NOT_REGISTERED
 
     def is_wait_ack_reg(self):
-        self.actual_state == WAIT_ACK_REG
+        return self.actual_state == WAIT_ACK_REG
 
     def is_wait_info(self):
-        self.actual_state == WAIT_INFO
+        return self.actual_state == WAIT_INFO
 
     def is_wait_ack_info(self): 
-        self.actual_state == WAIT_ACK_INFO
+        return self.actual_state == WAIT_ACK_INFO
 
     def is_registered(self):
-        self.actual_state == REGISTERED
+        return self.actual_state == REGISTERED
 
     def is_send_alive(self):
-        self.actual_state == SEND_ALIVE
-
-    def show(self):
-        print(self.actual_state)
+        return self.actual_state == SEND_ALIVE

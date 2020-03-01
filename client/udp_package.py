@@ -41,6 +41,7 @@ class UDPPackage(object):
         """Empaqueta las entradas, en función del tipo de paquete. 
            Y lo almacena, para poder obtener su información.
         """
+        
         result = ''
 
         if package == REG_REQ:
@@ -93,3 +94,13 @@ class UDPPackage(object):
         """
 
         return self.pack_info
+
+    def get_package_format(self, name):
+        pack_format = {}
+        if name == REG_ACK:
+            pack_format['type'] = REG_ACK
+            pack_format['id'] = ''
+            pack_format['rndm'] = ''
+            pack_format['data'] = ''
+
+        return pack_format
