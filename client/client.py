@@ -15,6 +15,8 @@ REG_REJ = 'REG_REJ'
 
 MAX_REGISTRATION_ATTEMPTS = 3
 
+CLIENT_IP = socket.gethostbyname(socket.gethostname())
+
 # Etiquetas para calcular tiempos de envio/recepción de paquete de registro
 T,  U,  N,  O,  P,  Q  = 1, 2, 7, 3, 3, 3
 
@@ -37,12 +39,18 @@ class Client(object):
             sys.exit(1)
 
     def registry(self):
+        """Inicia el proces d'enregistrament al servidor
+        """
         self.state_not_registered()
 
     def state_not_registered(self):
+        """Estat: NOT_REGISTERED
+           Inicia procés d'enregistrament, i envia el paquet REG_REQ
+        """
         global pack, udp_sock
         self.registration_attempts += 1
 
+        # Si él màxim d'enregistraments que es poden fer superen el maxim, el client acava
         if self.registration_attempts > MAX_REGISTRATION_ATTEMPTS:
             self.debug.could_not_register(MAX_REGISTRATION_ATTEMPTS)
             return False
@@ -73,6 +81,8 @@ class Client(object):
 
         # Si no obtenemos respuesta, el cliente termina
         if answer == None:
+            self.state.to_not_registered()
+            self.debug.state_change(self.state.get_actual_state())
             time.sleep(U)
             return self.state_not_registered()
 
@@ -94,7 +104,10 @@ class Client(object):
             return self.state_wait_ack_reg()
 
             if unpacked == None:
-                return state_not_registered()
+                self.state.to_not_registered()
+                self.debug.state_change(self.state.get_actual_state())
+                time.sleep(U)
+                return self.state_not_registered()
 
         elif unpacked['type'] == REG_ACK:
             self.server_info['id'] = unpacked['id']
@@ -114,7 +127,11 @@ class Client(object):
 
         elif unpacked['type'] == REG_REJ:
             self.debug.package_rejected_with_reason(unpacked['data'])
-            return self.state_not_registered() 
+
+            self.state.to_not_registered()
+            self.debug.state_change(self.state.get_actual_state())
+            time.sleep(U)
+            return self.state_not_registered()
 
     def state_wait_ack_info(self):
         """Estat WAIT_ACK_REG
@@ -130,6 +147,17 @@ class Client(object):
             unpacked = self.udp_package.unpack(answer)
             self.debug.received_udp_package(self.udp_package.get_last_package())
         except socket.timeout:
+            self.debug.does_not_respond(REG_INFO)
+
+            self.state.to_not_registered()
+            self.debug.state_change(self.state.get_actual_state())
+            time.sleep(U)
+            return self.state_not_registered()
+
+        if not self.package_validation(unpacked):
+            self.state.to_not_registered()
+            self.debug.state_change(self.state.get_actual_state())
+            time.sleep(U)
             return self.state_not_registered()
 
         if unpacked['type'] == INFO_ACK:
@@ -150,7 +178,10 @@ class Client(object):
             return self.state_wait_ack_reg(pack)
 
             if unpacked == None:
-                return state_not_registered()
+                self.state.to_not_registered()
+                self.debug.state_change(self.state.get_actual_state())
+                time.sleep(U)
+                return self.state_not_registered()
 
     def state_registered(self):
         self.state.to_registered()
@@ -206,6 +237,32 @@ class Client(object):
             pass
 
         return answer
+
+    def package_validation(self, package):
+        """Comprova que els paquets arriben en l'estat i en el format correctes
+        """
+        if package['type'] == REG_ACK and not self.state.is_wait_ack_reg():
+            return False
+        elif package['type'] == REG_NACK:
+            return True
+        elif package['type'] == REG_REJ:
+            return True
+        elif package['type'] == INFO_ACK or package['type'] == INFO_NACK:
+            if not self.state.is_wait_ack_info():
+                return False
+
+            elif package['id'] != self.server_info['id']:
+                self.debug.error_in_server_identification(CLIENT_IP, package['id'])
+                return False
+
+            elif package['random'] != self.server_info['random']:
+                self.debug.random_error(package['random'], self.server_info['random'])
+                return False
+
+            else:
+                return True
+        else:
+            return False
 
 def read_configuration(file_name):
     """Almacena la configuración del cliente, leyendo el fichero por defecto, o introducido por parametro

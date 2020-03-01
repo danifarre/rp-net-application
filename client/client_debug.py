@@ -24,8 +24,12 @@ class Debug(object):
     # Mensajes de ALERT
     #################################################################################
 
-    def debug_start(self):
+    def alert_start(self):
         return time.strftime("%H:%M:%S") + ': ' + 'ALERT =>  '
+
+    def error_in_server_identification(self, client_ip, id):
+        print(self.alert_start() + "Error en les dades d'identificació del servidor (rebut ip: " + client_ip + ", id: " + id + ")")
+
 
     #################################################################################
 
@@ -78,6 +82,12 @@ class Debug(object):
     def accepted_device(self):
         print(self.debug_start() + 'Acceptada la subscripció del dispositiu en el servidor')
 
+    def random_error(self, actual, expected):
+        print(self.debug_start() + 'Error en el valor del camp rndm (rebut: ' + actual + ', ' + 'esperat: ' + expected+ ')')
+
+    def does_not_respond(self, name):
+        print(self.debug_start() +  'Temporització per manca de resposta al paquet enviat: ' + name)
+        
     #################################################################################
 
     # Mensajes de MESSAGE
