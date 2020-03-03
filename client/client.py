@@ -26,11 +26,11 @@ class Client(object):
     """ Aquetsa classe representa el client
     """
 
-    def __init__(self, configuration, debug):
+    def __init__(self, configuration, _debug):
         self.state = states.States()
         self.udp_package = udp_package.UDPPackage()
         self.configuration = configuration
-        self.debug = client_debug.Debug()
+        self.debug = client_debug.Debug(_debug)
         self.server_info = {}
         self.registration_attempts = 0
 
@@ -38,7 +38,6 @@ class Client(object):
         """ Arranca el client, passant per les següents fases:
             - Registre
             - Manteniment de la comunicació
-            - Introducció de comandes bàsiques
             - Enviament de dades al servidor
             - Recepció de dades del servidor
 
@@ -64,11 +63,14 @@ class Client(object):
 
         # Si el número d'enregistraments que es poden fer superen el màxim, el client finalitza
         if self.registration_attempts > MAX_REGISTRATION_ATTEMPTS:
+            self.state.to_not_registered()
+            self.debug.state_change(self.state.get_actual_state())
             self.debug.could_not_register(MAX_REGISTRATION_ATTEMPTS)
             return False
 
         # Passem al estat NOT_REGISTERED
         self.state.to_not_registered()
+        self.debug.state_change(self.state.get_actual_state())
         self.debug.new_registration_process(self.state.get_actual_state(), self.registration_attempts)
 
         # Instanciem el socket en mode UDP
@@ -98,8 +100,7 @@ class Client(object):
 
         # Si no obtenim resposta, s'inicia una nova fase d'enregistrament, tornant a l'estat NOT_REGISTERED
         if answer == None:
-            time.sleep(U)
-            return self.state_not_registered()
+            return self.__new_registration_process()
 
         # Desempaquetamos la entrada, y analizamos el paquete
         unpacked = self.udp_package.unpack(answer)
@@ -165,7 +166,8 @@ class Client(object):
             return self.__new_registration_process()
 
         # Comprovem la validesa del paquet
-        self.package_validation(unpacked)
+        if not self.package_validation(unpacked):
+            return self.__new_registration_process()
 
         if unpacked['type'] == INFO_ACK:
             # Si el paquet es INFO_ACK, es passa a l'estat REGISTERED
@@ -184,17 +186,18 @@ class Client(object):
             udp_sock.sendto(pack, (self.configuration['Server'], int(self.configuration['Server-UDP'])))
             self.debug.send_udp_package(self.udp_package.get_last_package())
 
-            return self.state_wait_ack_reg(pack)
+            return self.state_wait_ack_reg()
 
     def state_registered(self):
         """ Estat: REGISTERED
             Es dona per conclosa la fase d'enregistrament
             S'espera la resposta per part del servidor del paquet ALIVE, mantenint la connexió activa
         """
-
         # Es passa a l'estat REGISTERED
         self.state.to_registered()
-        self.debug.state_change(self.state.get_actual_state())   
+        self.debug.state_change(self.state.get_actual_state())
+        return True
+
 
     # FUNCIÓ PENDENT D'OPTIMITZACIÓ
     def __wait_reg_req_response(self, t, u, n, o, p, q):
@@ -266,14 +269,15 @@ class Client(object):
             return True
         elif package['type'] == INFO_ACK or package['type'] == INFO_NACK:
             if not self.state.is_wait_ack_info():
-                return self.__new_registration_process()
+                return False
+
             elif package['id'] != self.server_info['id']:
                 self.debug.error_in_server_identification(CLIENT_IP, package['id'])
-                return self.__new_registration_process()
+                return False
 
             elif package['random'] != self.server_info['random']:
                 self.debug.random_error(package['random'], self.server_info['random'])
-                return self.__new_registration_process()
+                return False
 
             else:
                 return True
@@ -283,8 +287,7 @@ class Client(object):
     def __new_registration_process(self):
         """ Inicia un nou procés d'enregistrament
         """
-        self.state.to_not_registered()
-        self.debug.state_change(self.state.get_actual_state())
+
         time.sleep(U)
         return self.state_not_registered()
 

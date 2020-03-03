@@ -2,8 +2,8 @@ import time
 
 class Debug(object):
 	
-    def __init__(self):
-        pass
+    def __init__(self, _debug):
+        self.debug = _debug
 
     # Mensajes de ERROR
     #################################################################################
@@ -28,7 +28,8 @@ class Debug(object):
         return time.strftime("%H:%M:%S") + ': ' + 'ALERT =>  '
 
     def error_in_server_identification(self, client_ip, id):
-        print(self.alert_start() + "Error en les dades d'identificació del servidor (rebut ip: " + client_ip + ", id: " + id + ")")
+        if self.debug == True:
+            print(self.alert_start() + "Error en les dades d'identificació del servidor (rebut ip: " + client_ip + ", id: " + id + ")")
 
 
     #################################################################################
@@ -40,13 +41,16 @@ class Debug(object):
         return time.strftime("%H:%M:%S") + ': ' + 'INFO  =>  '
 
     def discarded_package_with_reason(self, reason):
-        print(self.info_start() + 'Descartat paquet de subscripció enviat, motiu: ' + reason)
+        if self.debug == True:
+            print(self.info_start() + 'Descartat paquet de subscripció enviat, motiu: ' + reason)
 
     def package_rejected_with_reason(self, reason):
-        print(self.info_start() + 'Rebutjat paquet de subscripció enviat, motiu: ' + reason)
+        if self.debug == True:
+            print(self.info_start() + 'Rebutjat paquet de subscripció enviat, motiu: ' + reason)
 
     def discarded_package_with_additional_info(self, reason):
-        print(self.info_start() + 'Descartat paquet de informació adicional de subscripció, motiu: ' + reason)
+        if self.debug == True:
+            print(self.info_start() + 'Descartat paquet de informació adicional de subscripció, motiu: ' + reason)
 
     #################################################################################
 
@@ -57,36 +61,42 @@ class Debug(object):
         return time.strftime("%H:%M:%S") + ': ' + 'DEBUG =>  '
 
     def start_loop_service(self, id):
-        print(self.debug_start() + 'Inici bucle de servei del equip: ' + id)
+        if self.debug == True:
+            print(self.debug_start() + 'Inici bucle de servei del equip: ' + id)
 
     def send_udp_package(self, package):
-        size, pack, id, rndm, data = package
-        print(self.debug_start() + 'Enviat: ' + 
-                                    'bytes=' + str(size) + ', ' + 
-                                    'paquet=' + pack + ', ' +
-                                    'id=' + id + ', ' + 
-                                    'rndm=' + rndm + ', ' + 
-                                    'dades=' + data
-                                    )
+        if self.debug == True:
+            size, pack, id, rndm, data = package
+            print(self.debug_start() + 'Enviat: ' + 
+                                        'bytes=' + str(size) + ', ' + 
+                                        'paquet=' + pack + ', ' +
+                                        'id=' + id + ', ' + 
+                                        'rndm=' + rndm + ', ' + 
+                                        'dades=' + data
+                                        )
 
     def received_udp_package(self, package):
-        size, pack, id, rndm, data = package
-        print(self.debug_start() + 'Rebut: ' + 
-                                    'bytes=' + str(size) + ', ' + 
-                                    'paquet=' + pack + ', ' +
-                                    'id=' + id + ', ' + 
-                                    'rndm=' + rndm + ', ' + 
-                                    'dades=' + data
-                                    )
+        if self.debug == True:
+            size, pack, id, rndm, data = package
+            print(self.debug_start() + 'Rebut: ' + 
+                                        'bytes=' + str(size) + ', ' + 
+                                        'paquet=' + pack + ', ' +
+                                        'id=' + id + ', ' + 
+                                        'rndm=' + rndm + ', ' + 
+                                        'dades=' + data
+                                        )
 
     def accepted_device(self):
-        print(self.debug_start() + 'Acceptada la subscripció del dispositiu en el servidor')
+        if self.debug == True:
+            print(self.debug_start() + 'Acceptada la subscripció del dispositiu en el servidor')
 
     def random_error(self, actual, expected):
-        print(self.debug_start() + 'Error en el valor del camp rndm (rebut: ' + actual + ', ' + 'esperat: ' + expected+ ')')
+        if self.debug == True:
+            print(self.debug_start() + 'Error en el valor del camp rndm (rebut: ' + actual + ', ' + 'esperat: ' + expected+ ')')
 
     def does_not_respond(self, name):
-        print(self.debug_start() +  'Temporització per manca de resposta al paquet enviat: ' + name)
+        if self.debug == True:
+            print(self.debug_start() +  'Temporització per manca de resposta al paquet enviat: ' + name)
         
     #################################################################################
 
@@ -97,12 +107,14 @@ class Debug(object):
         return time.strftime("%H:%M:%S") + ': ' + 'MSG.  =>  '
 
     def new_registration_process(self, state, attempt):
-        print(self.msg_start() + "Dispositiu passa a l'estat: " + state + ', proceso de suscripción: ' + str(attempt))
+        if self.debug == True:
+            print(self.msg_start() + "Dispositiu passa a l'estat: " + state + ', proceso de suscripción: ' + str(attempt))
     
     def state_change(self, state):
         print(self.msg_start() +  "Dispositiu passa a l'estat: " + state)
 
     def could_not_register(self, attempts):
-        print(self.msg_start() + 'Superat el número de processos de suscripció (' + str(attempts) +')')
+        if self.debug == True:
+            print(self.msg_start() + 'Superat el número de processos de suscripció (' + str(attempts) +')')
 
     #################################################################################
