@@ -8,6 +8,8 @@ INFO_ACK = 'INFO_ACK'
 REG_NACK = 'REG_NACK'
 INFO_NACK = 'INFO_NACK'
 REG_REJ = 'REG_REJ'
+ALIVE = 'ALIVE'
+ALIVE_REJ = 'ALIVE_REJ'
 
 # Formato de los paquetes
 UDP_FORMAT = '!B13s9s61s'
@@ -20,16 +22,20 @@ type_package = {REG_REQ : 0x00,
                 INFO_ACK : 0x03, 
                 REG_NACK : 0x04, 
                 INFO_NACK : 0x05, 
-                REG_REJ : 0x06
+                REG_REJ : 0x06,
+                ALIVE : 0x10,
+                ALIVE_REJ : 0x11
 }
 
-num_package = {0 : REG_REQ,
+num_package = { 0 : REG_REQ,
                 1 : REG_INFO,
                 2 : REG_ACK,
                 3 : INFO_ACK,
                 4 : REG_NACK,
                 5 : INFO_NACK,
-                6: REG_REJ
+                6 : REG_REJ,
+                16 : ALIVE,
+                17 : ALIVE_REJ
     
 }
 
@@ -37,7 +43,7 @@ class UDPPackage(object):
     def __init__(self):
         self.pack_info = ()
 
-    def pack(self, package, id = '', random = '', data = ''):
+    def pack(self, package, id = '', random = '00000000', data = ''):
         """Empaqueta las entradas, en función del tipo de paquete. 
            Y lo almacena, para poder obtener su información.
         """
@@ -45,12 +51,14 @@ class UDPPackage(object):
         result = ''
 
         if package == REG_REQ:
-            result = pack(UDP_FORMAT, type_package[REG_REQ], id.encode(), '00000000'.encode(), ''.encode())
-            self.pack_info = (calcsize(UDP_FORMAT), REG_REQ, id, '00000000', '')
+            result = pack(UDP_FORMAT, type_package[REG_REQ], id.encode(), random.encode(), data.encode())
+            self.pack_info = (calcsize(UDP_FORMAT), REG_REQ, id, random, data)
         elif package == REG_INFO:
             result = pack(UDP_FORMAT, type_package[REG_INFO], id.encode(), random.encode(), data.encode())
             self.pack_info = (calcsize(UDP_FORMAT), REG_INFO, id, random, data)
-        
+        elif package == ALIVE:
+            result = pack(UDP_FORMAT, type_package[ALIVE], id.encode(), random.encode(), data.encode())
+            self.pack_info = (calcsize(UDP_FORMAT), ALIVE, id, random, data)
         return result
 
     def unpack(self, package):
@@ -94,13 +102,3 @@ class UDPPackage(object):
         """
 
         return self.pack_info
-
-    def get_package_format(self, name):
-        pack_format = {}
-        if name == REG_ACK:
-            pack_format['type'] = REG_ACK
-            pack_format['id'] = ''
-            pack_format['rndm'] = ''
-            pack_format['data'] = ''
-
-        return pack_format

@@ -97,7 +97,27 @@ class Debug(object):
     def does_not_respond(self, name):
         if self.debug == True:
             print(self.debug_start() +  'Temporització per manca de resposta al paquet enviat: ' + name)
-        
+    
+    def ended_process(self, pid):
+        if self.debug == True:
+            print(self.debug_start() + 'Finalitzat procés ' + str(pid))
+
+    def created_process_alive(self):
+        if self.debug == True:
+            print(self.debug_start() + 'Creat procés per enviament periòdic de ALIVE')
+
+    def rejected_alive(self):
+        if self.debug == True:
+            print(self.debug_start() + 'Rebut paquet de rebuig ALIVE')
+
+    def closed_udp_socket(self):
+        if self.debug == True:
+            print(self.debug_start() + 'Tancat socket UDP per la comunicació amb el servidor')
+
+    def closed_tcp_socket(self):
+        if self.debug == True:
+            print(self.debug_start() + 'Tancat socket TCP per la comunicació amb el servidor')
+
     #################################################################################
 
     # Mensajes de MESSAGE
@@ -105,6 +125,9 @@ class Debug(object):
     
     def msg_start(self):
         return time.strftime("%H:%M:%S") + ': ' + 'MSG.  =>  '
+
+    def control_C(self):
+        print(self.msg_start() + 'Finalització per ^C')
 
     def new_registration_process(self, state, attempt):
         if self.debug == True:
@@ -117,4 +140,8 @@ class Debug(object):
         if self.debug == True:
             print(self.msg_start() + 'Superat el número de processos de suscripció (' + str(attempts) +')')
 
+    def open_tcp_port(self, port):
+        if self.debug == True:
+            print(self.msg_start() + 'Obert port TCP ' + port + ' per la comunicació amb el servidor')
+    
     #################################################################################
