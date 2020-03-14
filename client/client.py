@@ -7,9 +7,11 @@ import threading
 import socket
 import states
 import udp_package
+import tcp_package
 import client_debug
 import thread_alive
-from errors import NotAliveException
+import thread_input
+from datetime import datetime
 
 # Paquetes
 REG_REQ = 'REG_REQ'
@@ -22,7 +24,15 @@ REG_REJ = 'REG_REJ'
 ALIVE = 'ALIVE'
 ALIVE_REJ = 'ALIVE_REJ'
 
+SEND_DATA = 'SEND_DATA'
+SET_DATA = 'SET_DATA'
+GET_DATA = 'GET_DATA'
+DATA_ACK = 'DATA_ACK'
+DATA_NACK = 'DATA_NACK'
+DATA_REJ = 'DATA_REJ'
+
 PDU_UDP_PACKAGE_SIZE = 84
+PDU_TCP_PACKAGE_SIZE = 127
 
 MAX_REGISTRATION_ATTEMPTS = 3
 
@@ -30,6 +40,11 @@ CLIENT_IP = socket.gethostbyname(socket.gethostname())
 
 # Etiquetas para calcular tiempos de envio/recepción de paquete de registro
 T, U, N, O, P, Q, V, R = 1, 2, 7, 3, 3, 3, 2, 2
+
+STAT = 'stat'
+SET = 'set'
+SEND ='send'
+QUIT = 'quit'
 
 
 class Client(object):
@@ -39,10 +54,12 @@ class Client(object):
     def __init__(self, _configuration, _debug):
         self.state = states.States()
         self.udp_package = udp_package.UDPPackage()
+        self.tcp_package = tcp_package.TCPPackage()
         self.configuration = _configuration
         self.debug = client_debug.Debug(_debug)
         self.server_info = {}
         self.registration_attempts = 0
+        self.params = {x : 'NONE' for x in configuration['Params'].split(';')}
 
     def run(self):
         """ Arranca el client, passant per les següents fases:
@@ -52,6 +69,9 @@ class Client(object):
             - Recepció de dades del servidor
 
         """
+
+        self.debug.params(configuration['Id'], self.state.get_actual_state(), self.params)
+
         try:
             self.debug.start_loop_service(configuration['Id'])
             if not self.registry():
@@ -186,6 +206,9 @@ class Client(object):
         if unpacked['type'] == INFO_ACK:
             # Si el paquet es INFO_ACK, es passa a l'estat REGISTERED
             self.debug.accepted_device()
+
+            self.server_info['server-tcp'] = unpacked['data']
+
             return self.state_registered()
 
         elif unpacked['type'] == INFO_NACK:
@@ -220,6 +243,7 @@ class Client(object):
             udp_sock.sendto(pack, (self.configuration['Server'], int(self.configuration['Server-UDP'])))
             self.debug.send_udp_package(self.udp_package.get_last_package())
 
+            self.debug.timer_alive()
             try:
                 answer = udp_sock.recv(PDU_UDP_PACKAGE_SIZE)
                 unpacked = self.udp_package.unpack(answer)
@@ -243,12 +267,9 @@ class Client(object):
 
     def state_send_alive(self):
 
-        global t_alive
+        global t_alive, t_input
 
         self.debug.open_tcp_port(configuration['Local-TCP'])
-
-        tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # tcp_sock.connect((configuration['Server'], int(configuration['Local-TCP'])))
 
         self.state.to_send_alive()
         self.debug.state_change(self.state.get_actual_state())
@@ -260,17 +281,31 @@ class Client(object):
                                            self.state, 
                                            self.configuration,
                                            self.server_info)
+
+        t_input = thread_input.InputThread(self.debug,
+                                           self.configuration,
+                                           self.server_info,
+                                           self.params,
+                                           self.state)
+
         self.debug.created_process_alive()
+
         t_alive.start()
+        t_input.start()
 
-
+        while t_alive.is_alive() and t_input.is_alive():
+            continue
+        else:
+            self.close_threads()
+            
         t_alive.join()
+        t_input.join()
 
         udp_sock.close()
         self.debug.closed_udp_socket()
 
-        tcp_sock.close()
-        self.debug.closed_tcp_socket()
+        if t_input.is_quit():
+            return False
 
         return self.__new_registration_process()
 
@@ -336,45 +371,58 @@ class Client(object):
         return answer
 
     def package_validation(self, package):
-        """ Comprova que els paquets arriben en l'estat i en el format correctes
-        """
+            """ Comprova que els paquets arriben en l'estat i en el format correctes
+            """
 
-        if package['type'] == REG_ACK and not self.state.is_wait_ack_reg():
-            return self.__new_registration_process()
-        elif package['type'] == REG_NACK:
-            return True
-        elif package['type'] == REG_REJ:
-            return True
-        elif package['type'] == INFO_ACK or package['type'] == INFO_NACK:
-            if not self.state.is_wait_ack_info():
-                return False
-
-            elif package['id'] != self.server_info['id']:
-                self.debug.error_in_server_identification(CLIENT_IP, package['id'])
-                return False
-
-            elif package['random'] != self.server_info['random']:
-                self.debug.random_error(package['random'], self.server_info['random'])
-                return False
-
-            else:
+            if package['type'] == REG_ACK and not self.state.is_wait_ack_reg():
+                return self.__new_registration_process()
+            elif package['type'] == REG_NACK:
                 return True
-        elif package['type'] == ALIVE or package['type'] == ALIVE_REJ:
-            if not self.state.is_send_alive() and not self.state.is_registered():
-                return False
-
-            elif package['id'] != self.server_info['id']:
-                self.debug.error_in_server_identification(CLIENT_IP, package['id'])
-                return False
-
-            elif package['random'] != self.server_info['random']:
-                self.debug.random_error(package['random'], self.server_info['random'])
-                return False
-            
-            else:
+            elif package['type'] == REG_REJ:
                 return True
-        else:
-            return False
+            elif package['type'] == INFO_ACK or package['type'] == INFO_NACK:
+                if not self.state.is_wait_ack_info():
+                    return False
+
+                elif package['id'] != self.server_info['id']:
+                    self.debug.error_in_server_identification(CLIENT_IP, package['id'])
+                    return False
+
+                elif package['random'] != self.server_info['random']:
+                    self.debug.random_error(package['random'], self.server_info['random'])
+                    return False
+
+                else:
+                    return True
+            elif package['type'] == ALIVE or package['type'] == ALIVE_REJ:
+                if not self.state.is_send_alive() and not self.state.is_registered():
+                    return False
+
+                elif package['id'] != self.server_info['id']:
+                    self.debug.error_in_server_identification(CLIENT_IP, package['id'])
+                    return False
+
+                elif package['random'] != self.server_info['random']:
+                    self.debug.random_error(package['random'], self.server_info['random'])
+                    return False
+                
+                else:
+                    return True
+            elif package['type'] == DATA_ACK or package['type'] == DATA_NACK or package['type'] == DATA_REJ:
+                if not self.state.is_send_alive():
+                    return False
+
+                if package['info'] != self.configuration['Id']:
+                    self.debug.error_in_client_identification(package['info'])
+                    return False
+
+                elif package['random'] != self.server_info['random']:
+                    self.debug.random_error(package['random'], self.server_info['random'])
+                    return False
+                else:
+                    return True
+            else:
+                return False
 
     def __new_registration_process(self):
         """ Inicia un nou procés d'enregistrament
@@ -386,6 +434,7 @@ class Client(object):
     def close_threads(self):
         try:
             t_alive.kill()
+            t_input.kill()
         except NameError:
             pass
 

@@ -5,6 +5,23 @@ class Debug(object):
     def __init__(self, _debug):
         self.debug = _debug
 
+    def params(self, id, state, params):
+        print('********************* DADES DISPOSITIU ***********************')
+        print(' Identificador: ' + id)
+        print(' Estat: ' + state)
+        print()
+        print('   ', end = '')
+        print('Param         Valor')
+        print('   ', end = '')
+        print('-------     ---------------')
+        for p, n in params.items():
+            print('   ', end = '')
+            print(p, end = '     ')
+            print(n)
+        print()
+        print('**************************************************************')
+
+
     # Mensajes de ERROR
     #################################################################################
 
@@ -75,6 +92,19 @@ class Debug(object):
                                         'dades=' + data
                                         )
 
+    def send_tcp_package(self, package):
+        if self.debug == True:
+            size, pack, id, rndm, element, valor, info = package
+            print(self.debug_start() + 'Enviat: ' + 
+                                        'bytes=' + str(size) + ', ' + 
+                                        'paquet=' + pack + ', ' +
+                                        'id=' + id + ', ' + 
+                                        'rndm=' + rndm + ', ' + 
+                                        'element=' + element + ', ' +
+                                        'valor=' + valor + ', ' +
+                                        'info=' + info
+                                        )
+
     def received_udp_package(self, package):
         if self.debug == True:
             size, pack, id, rndm, data = package
@@ -84,6 +114,19 @@ class Debug(object):
                                         'id=' + id + ', ' + 
                                         'rndm=' + rndm + ', ' + 
                                         'dades=' + data
+                                        )
+
+    def received_tcp_package(self, package):
+        if self.debug == True:
+            size, pack, id, rndm, element, valor, info = package
+            print(self.debug_start() + 'Rebut: ' + 
+                                        'bytes=' + str(size) + ', ' + 
+                                        'paquet=' + pack + ', ' +
+                                        'id=' + id + ', ' + 
+                                        'rndm=' + rndm + ', ' + 
+                                        'element=' + element + ', ' +
+                                        'valor=' + valor + ', ' +
+                                        'info=' + info
                                         )
 
     def accepted_device(self):
@@ -118,6 +161,32 @@ class Debug(object):
         if self.debug == True:
             print(self.debug_start() + 'Tancat socket TCP per la comunicació amb el servidor')
 
+    def timer_alive(self):
+        if self.debug == True:
+            print(self.debug_start() + 'Establert temporitzador per enviament de ALIVE')
+
+
+    def error_in_client_identification(self, id):
+        if self.debug == True:
+            print(self.debug_start() + "Error en les dades d'identificació del dispositiu (rebut id: " + id + ")")
+
+    def accepted_data(self, element, valor, info):
+        if self.debug == True:
+            print(self.debug_start() + "Acceptat l'enviament de dades (element: " + element + ", valor: " + valor + "). Info: " + info)
+
+
+    def element_identifer_error(self, element, valor):
+        if self.debug == True:
+            print(self.debug_start() + "Error en les dades d'identificació de l'element del dispositiu (rebut element: " + element + ", valor: " + valor + ")")
+    
+    def resend_data(self):
+        if self.debug == True:
+             print(self.debug_start() + "Caldria reenviar les dades al servidor")
+
+    def ignored_send_data(self):
+        if self.debug == True:
+            print(self.debug_start() + "Rebut paquet de confirmació ALIVE sense confirmacions pendents. Paquet ignorat")
+
     #################################################################################
 
     # Mensajes de MESSAGE
@@ -143,5 +212,26 @@ class Debug(object):
     def open_tcp_port(self, port):
         if self.debug == True:
             print(self.msg_start() + 'Obert port TCP ' + port + ' per la comunicació amb el servidor')
-    
+
+    def wrong_command(self, command):
+        if self.debug == True:
+            print(self.msg_start() + 'Commanda incorrecta (' +  command + ')')
+
+    def syntax_error(self, command):
+        if self.debug == True:
+            print(self.msg_start() + 'Error de sintàxi. (' +  command + ')')
+
+    def element_does_not_exist(self, elem):
+        if self.debug == True:
+            print(self.msg_start() + 'Element: [' + elem + '] no pertany al dispositiu')
+
+    def init_tcp_comunication(self, port):
+        if self.debug == True:
+            print(self.msg_start() + 'Iniciada comunicació TCP amb el servidor (port: ' + port + ')')
+
+    def finish_tcp_comunication(self, port):
+        if self.debug == True:
+            print(self.msg_start() + 'Finalitzada comunicació TCP amb el servidor (port: ' + port + ')')
+
+
     #################################################################################

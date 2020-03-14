@@ -68,17 +68,17 @@ class AliveThread(threading.Thread):
                 except socket.timeout:
                     s -= 1
                     if s == 0:
-                        self.kill()
+                        self.killed = True
                         break 
                     continue
 
                 if not self.package_validation(unpacked):
-                    self.kill()
+                    self.killed = True
                     break
 
                 if unpacked['type'] == ALIVE_REJ:
                     self.debug.rejected_alive()
-                    self.kill()
+                    self.killed = True
                     self.alive_rej = True
                     break
 
