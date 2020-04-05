@@ -48,7 +48,6 @@ class Debug(object):
         if self.debug == True:
             print(self.alert_start() + "Error en les dades d'identificació del servidor (rebut ip: " + client_ip + ", id: " + id + ")")
 
-
     #################################################################################
 
     # Mensajes de INFO
@@ -170,12 +169,16 @@ class Debug(object):
         if self.debug == True:
             print(self.debug_start() + "Error en les dades d'identificació del dispositiu (rebut id: " + id + ")")
 
+    def error_in_client_identification_2(self, id):
+            if self.debug == True:
+                print(self.debug_start() + 'Rebut paquet amb id dispositiu incorrecte: ' + id + ' (error identificació)')
+
     def accepted_data(self, element, valor, info):
         if self.debug == True:
             print(self.debug_start() + "Acceptat l'enviament de dades (element: " + element + ", valor: " + valor + "). Info: " + info)
 
 
-    def element_identifer_error(self, element, valor):
+    def recieved_element_identifer_error(self, element, valor):
         if self.debug == True:
             print(self.debug_start() + "Error en les dades d'identificació de l'element del dispositiu (rebut element: " + element + ", valor: " + valor + ")")
     
@@ -186,6 +189,18 @@ class Debug(object):
     def ignored_send_data(self):
         if self.debug == True:
             print(self.debug_start() + "Rebut paquet de confirmació ALIVE sense confirmacions pendents. Paquet ignorat")
+
+    def package_error_in_server_identification(self, id, random, server_ip):
+        if self.debug == True:
+            print(self.debug_start() + "Rebut paquet incorrecte. Servidor: id=" + id + ", rndm=" + random + ", ip=" + server_ip + " (error identificació)")
+    
+    def package_error_in_client_identification(self, id):
+        if self.debug == True:
+            print(self.debug_start() + "Rebut paquet amb id dispositiu incorrecte: " + id + " (error identificació)")
+    
+    def error_output_element(self, element):
+        if self.debug == True:
+            print(self.debug_start() + "Error paquet rebut. Element: " + element + " és sensor i no permet establir el seu valor")
 
     #################################################################################
 

@@ -79,6 +79,7 @@ class Client(object):
         except KeyboardInterrupt:
             self.debug.control_C()
             self.close_threads()
+            tcp_sock.close()
             sys.exit()
 
     def registry(self):
@@ -165,7 +166,7 @@ class Client(object):
             pack = self.udp_package.pack(REG_INFO,
                                          configuration['Id'],
                                          self.server_info['random'],
-                                         configuration['Server-UDP'] + ',' + configuration['Params'])
+                                         configuration['Local-TCP'] + ',' + configuration['Params'])
 
             udp_sock.sendto(pack, (self.configuration['Server'], int(self.server_info['server-udp'])))
             self.debug.send_udp_package(self.udp_package.get_last_package())
@@ -267,9 +268,8 @@ class Client(object):
 
     def state_send_alive(self):
 
-        global t_alive, t_input
+        global t_alive, t_input, tcp_sock, server_ip
 
-        self.debug.open_tcp_port(configuration['Local-TCP'])
 
         self.state.to_send_alive()
         self.debug.state_change(self.state.get_actual_state())
@@ -288,18 +288,132 @@ class Client(object):
                                            self.params,
                                            self.state)
 
+        tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        tcp_sock.settimeout(1)
+
+        tcp_sock.bind((self.configuration['Server'], int(self.configuration['Local-TCP'])))
+        tcp_sock.listen(1)
+        self.debug.open_tcp_port(self.configuration['Local-TCP'])
+
         self.debug.created_process_alive()
 
         t_alive.start()
         t_input.start()
 
         while t_alive.is_alive() and t_input.is_alive():
-            continue
+            received = None
+            try:
+                conection, server_ip = tcp_sock.accept()
+                received = conection.recv(PDU_TCP_PACKAGE_SIZE)
+            except socket.timeout:
+                continue
+
+
+            unpacked = self.tcp_package.unpack(received)
+            self.debug.received_tcp_package(self.tcp_package.get_last_package())
+
+            if not self.package_validation(unpacked):
+                conection.close()
+                self.close_threads()
+                break
+
+            if unpacked['id'] != self.server_info['id']:
+                self.debug.package_error_in_server_identification(unpacked['id'], unpacked['random'], server_ip[0])
+
+                pack = self.tcp_package.pack(DATA_REJ,
+                             self.configuration['Id'], 
+                             self.server_info['random'],
+                             unpacked['element'],
+                             '',
+                             'Error identificació servidor')
+
+                conection.send(pack)
+                self.debug.send_tcp_package(self.tcp_package.get_last_package())
+
+                conection.close()
+                self.close_threads()
+                break
+
+            if unpacked['info'] != self.configuration['Id']:
+                self.debug.package_error_in_client_identification(unpacked['info'])
+
+                pack = self.tcp_package.pack(DATA_REJ,
+                             self.configuration['Id'], 
+                             self.server_info['random'],
+                             unpacked['element'],
+                             '',
+                             'Error identificació dispositiu')
+
+                conection.send(pack)
+                self.debug.send_tcp_package(self.tcp_package.get_last_package())
+
+                conection.close()
+                self.close_threads()
+                break
+
+            if unpacked['random'] != self.server_info['random']:
+                self.debug.random_error(package['random'], self.server_info['random'])
+
+                pack = self.tcp_package.pack(DATA_REJ,
+                                             self.configuration['Id'], 
+                                             self.server_info['random'],
+                                             unpacked['element'],
+                                             '',
+                                             'Error de random del servidor')
+
+                conection.send(pack)
+                self.debug.send_tcp_package(self.tcp_package.get_last_package())
+
+                conection.close()
+                self.close_threads()
+                break
+
+            if unpacked['type'] == SET_DATA:
+                if unpacked['element'][len(unpacked['element']) - 1] == 'O':
+                    self.debug.error_output_element(unpacked['element'])
+
+                    pack = self.tcp_package.pack(DATA_NACK,
+                                                 self.configuration['Id'], 
+                                                 self.server_info['random'],
+                                                 unpacked['element'],
+                                                 unpacked['valor'],
+                                                 'Element es sensor, no permet [set]')
+
+                    conection.send(pack)
+                    self.debug.send_tcp_package(self.tcp_package.get_last_package())
+                else:
+                    self.params[unpacked['element']] = unpacked['valor']
+                    pack = self.tcp_package.pack(DATA_ACK,
+                                                 self.configuration['Id'], 
+                                                 self.server_info['random'],
+                                                 unpacked['element'],
+                                                 unpacked['valor'],
+                                                 'Valor establert correctament')
+
+                    conection.send(pack)
+                    self.debug.send_tcp_package(self.tcp_package.get_last_package())
+
+                    self.params[unpacked['element']] = unpacked['valor']
+
+            elif unpacked['type'] == GET_DATA:
+                pack = self.tcp_package.pack(DATA_ACK,
+                                             self.configuration['Id'], 
+                                             self.server_info['random'],
+                                             unpacked['element'],
+                                             self.params[unpacked['element']],
+                                             'Valor llegit correctament')
+
+                conection.send(pack)
+                self.debug.send_tcp_package(self.tcp_package.get_last_package())
         else:
             self.close_threads()
             
         t_alive.join()
         t_input.join()
+
+        tcp_sock.close()
+        self.debug.closed_tcp_socket()
 
         udp_sock.close()
         self.debug.closed_udp_socket()
@@ -371,58 +485,69 @@ class Client(object):
         return answer
 
     def package_validation(self, package):
-            """ Comprova que els paquets arriben en l'estat i en el format correctes
-            """
+        """ Comprova que els paquets arriben en l'estat i en el format correctes
+        """
 
-            if package['type'] == REG_ACK and not self.state.is_wait_ack_reg():
-                return self.__new_registration_process()
-            elif package['type'] == REG_NACK:
-                return True
-            elif package['type'] == REG_REJ:
-                return True
-            elif package['type'] == INFO_ACK or package['type'] == INFO_NACK:
-                if not self.state.is_wait_ack_info():
-                    return False
-
-                elif package['id'] != self.server_info['id']:
-                    self.debug.error_in_server_identification(CLIENT_IP, package['id'])
-                    return False
-
-                elif package['random'] != self.server_info['random']:
-                    self.debug.random_error(package['random'], self.server_info['random'])
-                    return False
-
-                else:
-                    return True
-            elif package['type'] == ALIVE or package['type'] == ALIVE_REJ:
-                if not self.state.is_send_alive() and not self.state.is_registered():
-                    return False
-
-                elif package['id'] != self.server_info['id']:
-                    self.debug.error_in_server_identification(CLIENT_IP, package['id'])
-                    return False
-
-                elif package['random'] != self.server_info['random']:
-                    self.debug.random_error(package['random'], self.server_info['random'])
-                    return False
-                
-                else:
-                    return True
-            elif package['type'] == DATA_ACK or package['type'] == DATA_NACK or package['type'] == DATA_REJ:
-                if not self.state.is_send_alive():
-                    return False
-
-                if package['info'] != self.configuration['Id']:
-                    self.debug.error_in_client_identification(package['info'])
-                    return False
-
-                elif package['random'] != self.server_info['random']:
-                    self.debug.random_error(package['random'], self.server_info['random'])
-                    return False
-                else:
-                    return True
-            else:
+        if package['type'] == REG_ACK and not self.state.is_wait_ack_reg():
+            return self.__new_registration_process()
+        elif package['type'] == REG_NACK:
+            return True
+        elif package['type'] == REG_REJ:
+            return True
+        elif package['type'] == INFO_ACK or package['type'] == INFO_NACK:
+            if not self.state.is_wait_ack_info():
                 return False
+
+            elif package['id'] != self.server_info['id']:
+                self.debug.error_in_server_identification(CLIENT_IP, package['id'])
+                return False
+
+            elif package['random'] != self.server_info['random']:
+                self.debug.random_error(package['random'], self.server_info['random'])
+                return False
+
+            else:
+                return True
+        elif package['type'] == ALIVE or package['type'] == ALIVE_REJ:
+            if not self.state.is_send_alive() and not self.state.is_registered():
+                return False
+
+            elif package['id'] != self.server_info['id']:
+                self.debug.error_in_server_identification(package['id'], package['rndm'])
+                return False
+
+            elif package['random'] != self.server_info['random']:
+                self.debug.random_error(package['random'], self.server_info['random'])
+                return False
+            
+            else:
+                return True
+        elif package['type'] == DATA_ACK or package['type'] == DATA_NACK or package['type'] == DATA_REJ:
+            if not self.state.is_send_alive():
+                return False
+
+            if package['info'] != self.configuration['Id']:
+                self.debug.error_in_client_identification(package['info'])
+                return False
+
+            elif package['random'] != self.server_info['random']:
+                self.debug.random_error(package['random'], self.server_info['random'])
+                return False
+            else:
+                return True
+
+        elif package['type'] == SET_DATA or package['type'] == GET_DATA:
+            if not self.state.is_send_alive():
+                return False
+
+            elif package['element'] not in self.params.keys():
+
+                return False
+            else:
+                return True
+
+        else:
+            return False
 
     def __new_registration_process(self):
         """ Inicia un nou procés d'enregistrament

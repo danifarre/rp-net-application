@@ -18,7 +18,7 @@ type_package = {SEND_DATA : 0x20,
                 SET_DATA : 0x21,
                 GET_DATA : 0x22, 
                 DATA_ACK : 0x23, 
-                DATA_NACK : 0x25, 
+                DATA_NACK : 0x24, 
                 DATA_REJ : 0x25, 
 }
 

@@ -6,7 +6,6 @@ import socket
 import states
 import tcp_package
 import client_debug
-from client import Client
 from datetime import datetime
 
 # Paquetes
@@ -59,8 +58,6 @@ class InputThread(threading.Thread):
     def is_killed(self):
         return self.killed
 
-    def get_command(self):
-        return self.command
 
     def is_quit(self):
         return self.quit
@@ -117,7 +114,7 @@ class InputThread(threading.Thread):
 
                         if unpacked['type'] == DATA_ACK:
                             if command[1] != unpacked['element']:
-                                self.debug.element_identifer_error(unpacked['element'], unpacked['valor'])
+                                self.debug.recieved_element_identifer_error(unpacked['element'], unpacked['valor'])
                                 self.debug.resend_data()
                             else:
                                 self.debug.accepted_data(unpacked['element'], unpacked['valor'], unpacked['info'])
